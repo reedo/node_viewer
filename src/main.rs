@@ -1,9 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide the console window on Windows in release
 
-// When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
-    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    env_logger::init();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -20,7 +19,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Node Viewer",
         native_options,
-        Box::new(|cc| Ok(Box::new(node_viewer::TemplateApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(node_viewer::App::new(cc)))),
     )
 }
 
@@ -50,7 +49,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(node_viewer::TemplateApp::new(cc)))),
+                Box::new(|cc| Ok(Box::new(node_viewer::App::new(cc)))),
             )
             .await;
 
