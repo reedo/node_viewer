@@ -26,7 +26,7 @@ impl eframe::App for App {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(context, |ui| {
             context.set_pixels_per_point(self.ui_scale);
-            
+
             egui::menu::bar(ui, |ui| {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     egui::ComboBox::from_label("UI scale")
