@@ -2,6 +2,7 @@ use egui::{Align, Layout};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct App {
     ui_scale: f32,
 }
@@ -17,6 +18,11 @@ impl App {
     pub fn new(_creation_context: &eframe::CreationContext<'_>) -> Self {
         // This is where you can customise the look and feel of egui using
         // `creation_context.egui_ctx.set_visuals` and `creation_context.egui_ctx.set_fonts`.
+
+        // Load previous app state.
+        if let Some(storage) = _creation_context.storage {
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        }
 
         Default::default()
     }
@@ -49,5 +55,9 @@ impl eframe::App for App {
                 egui::warn_if_debug_build(ui);
             });
         });
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 }
