@@ -1,7 +1,16 @@
 use egui::{Align, Layout};
+use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
-pub struct App;
+#[derive(Debug, Deserialize, Serialize)]
+pub struct App {
+    ui_scale: f32,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        App { ui_scale: 1.0 }
+    }
+}
 
 impl App {
     /// Called once before the first frame.
@@ -16,8 +25,18 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(context, |ui| {
+            context.set_pixels_per_point(self.ui_scale);
+            
             egui::menu::bar(ui, |ui| {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    egui::ComboBox::from_label("UI scale")
+                        .selected_text(format!("{:?}", &self.ui_scale))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.ui_scale, 1.0, "1.0");
+                            ui.selectable_value(&mut self.ui_scale, 1.5, "1.5");
+                            ui.selectable_value(&mut self.ui_scale, 2.0, "2.0");
+                        });
+
                     egui::widgets::global_theme_preference_buttons(ui);
                 });
             });
