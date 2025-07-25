@@ -1,6 +1,9 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::file_loading::open_native_file_dialog;
 
+#[cfg(target_arch = "wasm32")]
+use crate::file_loading::open_web_file_dialog;
+
 use crate::file_loading::FileDetails;
 use egui::{Align, Layout, UiKind};
 use serde::{Deserialize, Serialize};
@@ -57,33 +60,17 @@ impl App {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let app_rc = std::rc::Rc::new(std::cell::RefCell::new(()));
-            self.open_web_file_dialog(app_rc);
+            match open_web_file_dialog() {
+                Ok(file_details) => {
+                    self.loaded_file = Some(file_details);
+                    self.file_error = None;
+                }
+                Err(e) => {
+                    self.file_error = Some(format!("Error opening file: {e}"));
+                    self.loaded_file = None;
+                }
+            }
         }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn open_web_file_dialog(&mut self, _trigger: std::rc::Rc<std::cell::RefCell<()>>) {
-        use wasm_bindgen::JsCast;
-        use web_sys::HtmlInputElement;
-
-        let document = web_sys::window()
-            .expect("No window found")
-            .document()
-            .expect("No document found");
-
-        // Create a file input element
-        let input: HtmlInputElement = document
-            .create_element("input")
-            .expect("Failed to create input element")
-            .dyn_into()
-            .expect("Failed to cast to HtmlInputElement");
-
-        // Configure the input to accept only one file
-        input.set_type("file");
-        input.set_multiple(false);
-
-        // TODO
     }
 
     fn display_file_content(&self, ui: &mut egui::Ui, content: &[u8]) {
