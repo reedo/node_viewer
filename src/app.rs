@@ -45,30 +45,19 @@ impl App {
 
     fn open_file_dialog(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            match open_native_file_dialog() {
-                Ok(file_details) => {
-                    self.loaded_file = Some(file_details);
-                    self.file_error = None;
-                }
-                Err(e) => {
-                    self.file_error = Some(format!("Error opening file: {e}"));
-                    self.loaded_file = None;
-                }
-            }
-        }
+        let file_details_result = open_native_file_dialog();
 
         #[cfg(target_arch = "wasm32")]
-        {
-            match open_web_file_dialog() {
-                Ok(file_details) => {
-                    self.loaded_file = Some(file_details);
-                    self.file_error = None;
-                }
-                Err(e) => {
-                    self.file_error = Some(format!("Error opening file: {e}"));
-                    self.loaded_file = None;
-                }
+        let file_details_result = open_web_file_dialog();
+
+        match file_details_result {
+            Ok(file_details) => {
+                self.loaded_file = Some(file_details);
+                self.file_error = None;
+            }
+            Err(e) => {
+                self.file_error = Some(format!("Error opening file: {e}"));
+                self.loaded_file = None;
             }
         }
     }
