@@ -1,12 +1,12 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::file_loading::open_native_file_dialog;
 
-#[cfg(target_arch = "wasm32")]
-use crate::file_loading::open_web_file_dialog;
-
-use crate::file_loading::FileDetails;
+use crate::file_loading::FileLoadingState;
 use egui::{Align, Layout, UiKind};
 use serde::{Deserialize, Serialize};
+
+#[cfg(target_arch = "wasm32")]
+use std::sync::mpsc;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -14,75 +14,157 @@ pub struct App {
     ui_scale: f32,
 
     #[serde(skip)]
-    loaded_file: Option<FileDetails>,
+    file_loading_state: FileLoadingState,
 
-    file_error: Option<String>,
+    #[serde(skip)]
+    #[cfg(target_arch = "wasm32")]
+    file_receiver: Option<mpsc::Receiver<FileLoadingState>>,
 }
 
 impl Default for App {
     fn default() -> Self {
         App {
             ui_scale: 1.0,
-            loaded_file: None,
-            file_error: None,
+            file_loading_state: FileLoadingState::Idle,
+            #[cfg(target_arch = "wasm32")]
+            file_receiver: None,
         }
     }
 }
 
 impl App {
     pub fn new(_creation_context: &eframe::CreationContext<'_>) -> Self {
-        // This is where you can customise the look and feel of egui using
-        // `creation_context.egui_ctx.set_visuals` and `creation_context.egui_ctx.set_fonts`.
-
         // Load previous app state.
         if let Some(storage) = _creation_context.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            let mut app: App = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+
+            // Initialize the receiver for WASM builds
+            #[cfg(target_arch = "wasm32")]
+            {
+                let (_, receiver) = mpsc::channel();
+                app.file_receiver = Some(receiver);
+            }
+
+            return app;
         }
 
-        Default::default()
+        let mut app = Self::default();
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let (_, receiver) = mpsc::channel();
+            app.file_receiver = Some(receiver);
+        }
+
+        app
     }
 
     fn open_file_dialog(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        let file_details_result = open_native_file_dialog();
+        {
+            match open_native_file_dialog() {
+                Ok(file_details) => {
+                    self.file_loading_state = FileLoadingState::Loaded(file_details);
+                }
+                Err(e) => {
+                    self.file_loading_state =
+                        FileLoadingState::Error(format!("Error opening file: {e}"));
+                }
+            }
+        }
 
         #[cfg(target_arch = "wasm32")]
-        let file_details_result = open_web_file_dialog();
+        {
+            use crate::file_loading::open_web_file_dialog_async;
+            use wasm_bindgen_futures::spawn_local;
 
-        match file_details_result {
-            Ok(file_details) => {
-                self.loaded_file = Some(file_details);
-                self.file_error = None;
-            }
-            Err(e) => {
-                self.file_error = Some(format!("Error opening file: {e}"));
-                self.loaded_file = None;
+            // Set loading state
+            self.file_loading_state = FileLoadingState::Loading;
+
+            // Create a new channel for this file loading operation
+            let (sender, receiver) = mpsc::channel();
+            self.file_receiver = Some(receiver);
+
+            // Spawn the async file loading operation
+            spawn_local(async move {
+                let result = match open_web_file_dialog_async().await {
+                    Ok(file_details) => FileLoadingState::Loaded(file_details),
+                    Err(e) => FileLoadingState::Error(format!("Error opening file: {e}")),
+                };
+
+                // Send the result back to the main thread
+                if let Err(e) = sender.send(result) {
+                    log::error!("Failed to send file loading result: {e}");
+                }
+            });
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn check_file_loading_result(&mut self) {
+        if let Some(receiver) = &self.file_receiver {
+            // Check if there's a new result from the async operation
+            if let Ok(new_state) = receiver.try_recv() {
+                self.file_loading_state = new_state;
             }
         }
     }
 
     fn display_file_content(&self, ui: &mut egui::Ui, content: &[u8]) {
-        // This method would handle displaying the file content based on the file type
-        // For example, if it's a text file, you could display it as text
-        // If it's a binary file, you might display a hex view or a specialized viewer
-
-        // For now, just display the file size
         ui.label(format!("File size: {} bytes", content.len()));
 
-        // Implement actual file content display based on the application's requirements
-        // For example, if this is a node viewer, you might parse the file as a node graph
-        // and display it using egui's drawing capabilities
+        // Display first few bytes as hex if it's a small file
+        if content.len() <= 1024 {
+            ui.collapsing("File content (hex)", |ui| {
+                let hex_string = content
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                ui.add(
+                    egui::TextEdit::multiline(&mut hex_string.as_str())
+                        .desired_width(f32::INFINITY)
+                        .code_editor(),
+                );
+            });
+        }
+
+        // Try to display as text if it looks like text
+        if let Ok(mut text_content) = std::str::from_utf8(content) {
+            if text_content
+                .chars()
+                .all(|c| c.is_ascii() && !c.is_control() || c.is_whitespace())
+            {
+                ui.collapsing("File content (text)", |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut text_content)
+                            .desired_width(f32::INFINITY)
+                            .code_editor(),
+                    );
+                });
+            }
+        }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for async file loading results on WASM
+        #[cfg(target_arch = "wasm32")]
+        self.check_file_loading_result();
+
         egui::TopBottomPanel::top("top_panel").show(context, |ui| {
             context.set_pixels_per_point(self.ui_scale);
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open...").clicked() {
+                    let open_button = ui.add_enabled(
+                        !matches!(self.file_loading_state, FileLoadingState::Loading),
+                        egui::Button::new("Open..."),
+                    );
+
+                    if open_button.clicked() {
                         self.open_file_dialog();
                         ui.close_kind(UiKind::Menu);
                     }
@@ -103,25 +185,36 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(context, |ui| {
-            if let Some(error) = &self.file_error {
-                ui.colored_label(egui::Color32::RED, error);
-            }
-
-            if let Some(loaded_file) = &self.loaded_file {
-                ui.heading(format!("File: {}", &loaded_file.file_name));
-
-                if let Some(content) = &self.loaded_file {
-                    self.display_file_content(ui, &content.file_content);
+            match &self.file_loading_state {
+                FileLoadingState::Idle => {
+                    ui.heading("Node Viewer");
+                    ui.label("No file opened. Use File > Open to select a file.");
                 }
-            } else {
-                ui.heading("Node Viewer");
-                ui.label("No file opened. Use File > Open to select a file.");
+                FileLoadingState::Loading => {
+                    ui.heading("Loading file...");
+                    ui.spinner();
+                    ui.label("Please wait while the file is being loaded.");
+                }
+                FileLoadingState::Loaded(file_details) => {
+                    ui.heading(format!("File: {}", &file_details.file_name));
+                    self.display_file_content(ui, &file_details.file_content);
+                }
+                FileLoadingState::Error(error) => {
+                    ui.heading("Error");
+                    ui.colored_label(egui::Color32::RED, error);
+                    ui.separator();
+                    ui.label("Use File > Open to try loading another file.");
+                }
             }
 
             ui.with_layout(Layout::bottom_up(Align::RIGHT), |ui| {
                 egui::warn_if_debug_build(ui);
             });
         });
+
+        // Request repaint to keep checking for async results
+        #[cfg(target_arch = "wasm32")]
+        context.request_repaint();
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
