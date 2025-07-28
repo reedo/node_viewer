@@ -19,7 +19,7 @@ pub enum FileLoadingState {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn open_native_file_dialog() -> anyhow::Result<FileDetails> {
-    use anyhow::anyhow;
+    use anyhow::{anyhow, Context};
 
     let Some(path) = rfd::FileDialog::new()
         .add_filter("All files", &["*"])
@@ -104,7 +104,8 @@ pub async fn open_web_file_dialog_async() -> anyhow::Result<FileDetails> {
 
                 // Create a JavaScript object to return both filename and content
                 let result = js_sys::Object::new();
-                js_sys::Reflect::set(&result, &"fileName".into(), &file_name_clone.clone().into()).unwrap();
+                js_sys::Reflect::set(&result, &"fileName".into(), &file_name_clone.clone().into())
+                    .unwrap();
                 js_sys::Reflect::set(
                     &result,
                     &"content".into(),
