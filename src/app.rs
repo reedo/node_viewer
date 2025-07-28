@@ -30,7 +30,6 @@ impl Default for App {
 }
 
 impl App {
-    /// Called once before the first frame.
     pub fn new(_creation_context: &eframe::CreationContext<'_>) -> Self {
         // This is where you can customise the look and feel of egui using
         // `creation_context.egui_ctx.set_visuals` and `creation_context.egui_ctx.set_fonts`.
@@ -111,7 +110,6 @@ impl eframe::App for App {
             if let Some(loaded_file) = &self.loaded_file {
                 ui.heading(format!("File: {}", &loaded_file.file_name));
 
-                // Display file content based on the file type
                 if let Some(content) = &self.loaded_file {
                     self.display_file_content(ui, &content.file_content);
                 }
