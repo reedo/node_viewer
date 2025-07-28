@@ -1,11 +1,6 @@
-#[cfg(not(target_arch = "wasm32"))]
-use crate::file_loading::open_native_file_dialog;
-
 use crate::file_loading::FileLoadingState;
 use egui::{Align, Layout, UiKind};
 use serde::{Deserialize, Serialize};
-
-#[cfg(target_arch = "wasm32")]
 use std::sync::mpsc;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -17,7 +12,6 @@ pub struct App {
     file_loading_state: FileLoadingState,
 
     #[serde(skip)]
-    #[cfg(target_arch = "wasm32")]
     file_receiver: Option<mpsc::Receiver<FileLoadingState>>,
 }
 
@@ -26,29 +20,19 @@ impl Default for App {
         App {
             ui_scale: 1.0,
             file_loading_state: FileLoadingState::Idle,
-            #[cfg(target_arch = "wasm32")]
             file_receiver: None,
         }
     }
 }
 
 impl App {
-    pub fn new(_creation_context: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(creation_context: &eframe::CreationContext<'_>) -> Self {
+        let mut app = App::default();
+
         // Load previous app state.
-        if let Some(storage) = _creation_context.storage {
-            let mut app: App = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-
-            // Initialize the receiver for WASM builds
-            #[cfg(target_arch = "wasm32")]
-            {
-                let (_, receiver) = mpsc::channel();
-                app.file_receiver = Some(receiver);
-            }
-
-            return app;
+        if let Some(storage) = creation_context.storage {
+            app = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
-
-        let mut app = Self::default();
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -62,6 +46,8 @@ impl App {
     fn open_file_dialog(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
+            use crate::file_loading::open_native_file_dialog;
+
             match open_native_file_dialog() {
                 Ok(file_details) => {
                     self.file_loading_state = FileLoadingState::Loaded(file_details);
@@ -78,21 +64,21 @@ impl App {
             use crate::file_loading::open_web_file_dialog_async;
             use wasm_bindgen_futures::spawn_local;
 
-            // Set loading state
+            // Set loading state.
             self.file_loading_state = FileLoadingState::Loading;
 
-            // Create a new channel for this file loading operation
+            // Create a new channel for this file loading operation.
             let (sender, receiver) = mpsc::channel();
             self.file_receiver = Some(receiver);
 
-            // Spawn the async file loading operation
+            // Spawn the async file loading operation.
             spawn_local(async move {
                 let result = match open_web_file_dialog_async().await {
                     Ok(file_details) => FileLoadingState::Loaded(file_details),
                     Err(e) => FileLoadingState::Error(format!("Error opening file: {e}")),
                 };
 
-                // Send the result back to the main thread
+                // Send the result back to the main thread.
                 if let Err(e) = sender.send(result) {
                     log::error!("Failed to send file loading result: {e}");
                 }
@@ -103,7 +89,7 @@ impl App {
     #[cfg(target_arch = "wasm32")]
     fn check_file_loading_result(&mut self) {
         if let Some(receiver) = &self.file_receiver {
-            // Check if there's a new result from the async operation
+            // Check if there's a new result from the async operation.
             if let Ok(new_state) = receiver.try_recv() {
                 self.file_loading_state = new_state;
             }
@@ -113,12 +99,12 @@ impl App {
     fn display_file_content(&self, ui: &mut egui::Ui, content: &[u8]) {
         ui.label(format!("File size: {} bytes", content.len()));
 
-        // Display first few bytes as hex if it's a small file
+        // Display the first few bytes as hex if it's a small file.
         if content.len() <= 1024 {
             ui.collapsing("File content (hex)", |ui| {
                 let hex_string = content
                     .iter()
-                    .map(|b| format!("{:02x}", b))
+                    .map(|b| format!("{b:02x}"))
                     .collect::<Vec<_>>()
                     .join(" ");
 
@@ -130,7 +116,7 @@ impl App {
             });
         }
 
-        // Try to display as text if it looks like text
+        // Try to display as text if it looks like text.
         if let Ok(mut text_content) = std::str::from_utf8(content) {
             if text_content
                 .chars()
@@ -212,7 +198,7 @@ impl eframe::App for App {
             });
         });
 
-        // Request repaint to keep checking for async results
+        // Request repaint to keep checking for async results.
         #[cfg(target_arch = "wasm32")]
         context.request_repaint();
     }

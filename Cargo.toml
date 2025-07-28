@@ -16,6 +16,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 anyhow = "1"
 egui = "0.32"
 log = "0.4"
+rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 
 # native:
@@ -27,7 +28,6 @@ eframe = { version = "0.32", default-features = false, features = [
     "wayland",
 ] }
 env_logger = "0.11"
-rfd = "0.15"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
