@@ -47,6 +47,8 @@ impl App {
         {
             use crate::file_loading::open_native_file_dialog;
 
+            self.file_loading_state = FileLoadingState::Loading;
+
             match open_native_file_dialog() {
                 Ok(file_details) => {
                     self.file_loading_state = FileLoadingState::Loaded(file_details);
