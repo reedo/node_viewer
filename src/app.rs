@@ -29,7 +29,6 @@ impl App {
     pub fn new(creation_context: &eframe::CreationContext<'_>) -> Self {
         let mut app = App::default();
 
-        // Load previous app state.
         if let Some(storage) = creation_context.storage {
             app = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
