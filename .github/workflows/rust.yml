@@ -1,170 +1,74 @@
-on: [push, pull_request, workflow_dispatch]
+name: Rust
 
-name: CI
+on:
+    push:
+        branches: [ "main" ]
+    pull_request:
+        branches: [ "main" ]
 
 env:
-  RUSTFLAGS: -D warnings
-  RUSTDOCFLAGS: -D warnings
+    CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-features
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
 
-  check_wasm:
-    name: Check wasm32
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-features --lib --target wasm32-unknown-unknown
+            -   name: Build
+                run: cargo build --verbose
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+            -   name: Run tests
+                run: cargo test --verbose
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+    fmt:
+        name: Rustfmt
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    override: true
+                    components: rustfmt
 
-  trunk:
-    name: trunk
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Build
-        run: ./trunk build
+            -   name: Check formatting
+                run: cargo fmt --all -- --check
 
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-#        - os: macos-latest
-#          TARGET: aarch64-apple-darwin
+    clippy:
+        name: Clippy
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
 
-#        - os: ubuntu-latest
-#          TARGET: aarch64-unknown-linux-gnu
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    override: true
+                    components: clippy
 
-#        - os: ubuntu-latest
-#          TARGET: armv7-unknown-linux-gnueabihf
+            -   name: Run clippy
+                run: cargo clippy --all-targets --all-features -- -D warnings
 
-#        - os: ubuntu-latest
-#          TARGET: x86_64-unknown-linux-gnu
+    trunk:
+        name: Trunk
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
 
-        - os: windows-latest
-          TARGET: x86_64-pc-windows-msvc
-          EXTENSION: .exe
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    target: wasm32-unknown-unknown
+                    override: true
 
-    steps:
-    - name: Building ${{ matrix.TARGET }}
-      run: echo "${{ matrix.TARGET }}"
+            -   name: Download and install Trunk binary
+                run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
 
-    - uses: actions/checkout@master
-    - name: Install build dependencies - Rustup
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --profile default --target ${{ matrix.TARGET }} -y
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    # For linux, it's necessary to use cross from the git repository to avoid glibc problems
-    # Ref: https://github.com/cross-rs/cross/issues/1510
-    - name: Install cross for linux
-      if: contains(matrix.TARGET, 'linux')
-      run: |
-        cargo install cross --git https://github.com/cross-rs/cross --rev 1b8cf50d20180c1a394099e608141480f934b7f7
-
-    - name: Install cross for mac and windows
-      if: ${{ !contains(matrix.TARGET, 'linux') }}
-      run: |
-        cargo install cross
-
-    - name: Build
-      run: |
-        cross build --verbose --release --target=${{ matrix.TARGET }}
-
-    - name: Rename
-      run: cp target/${{ matrix.TARGET }}/release/eframe_template${{ matrix.EXTENSION }} eframe_template-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-
-    - uses: actions/upload-artifact@master
-      with:
-        name: eframe_template-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        path: eframe_template-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-
-    - uses: svenstaro/upload-release-action@v2
-      name: Upload binaries to release
-      if: ${{ github.event_name == 'push' }}
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: eframe_template-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        asset_name: eframe_template-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        tag: ${{ github.ref }}
-        prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        overwrite: true
+            -   name: Build
+                run: ./trunk build
