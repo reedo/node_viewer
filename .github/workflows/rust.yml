@@ -21,7 +21,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: check
-                    args: --all-features --lib --target x86_64-unknown-linux-gnu
+                    args: --all-features --lib --target x86_64-pc-windows-msvc
 
     check_wasm:
         name: Check [wasm32]
@@ -48,13 +48,13 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
-                    target: x86_64-unknown-linux-gnu
+                    target: x86_64-pc-windows-msvc
                     override: true
             -   run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
             -   uses: actions-rs/cargo@v1
                 with:
                     command: test
-                    args: --lib --target x86_64-unknown-linux-gnu
+                    args: --lib --target x86_64-pc-windows-msvc
 
     test_wasm:
         name: Test Suite [wasm32]
@@ -82,7 +82,7 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
-                    target: x86_64-unknown-linux-gnu
+                    target: x86_64-pc-windows-msvc
                     override: true
                     components: rustfmt
             -   uses: actions-rs/cargo@v1
@@ -116,7 +116,7 @@ jobs:
     #                with:
     #                    profile: minimal
     #                    toolchain: stable
-    #                    target: x86_64-unknown-linux-gnu
+    #                    target: x86_64-pc-windows-msvc
     #                    override: true
     #                    components: clippy
     #            -   uses: actions-rs/cargo@v1
