@@ -7,8 +7,8 @@ env:
     RUSTDOCFLAGS: -D warnings
 
 jobs:
-    check:
-        name: Check
+    check_native:
+        name: Check [x86_64]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
@@ -16,14 +16,15 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
+                    target: x86_64-unknown-linux-gnu
                     override: true
             -   uses: actions-rs/cargo@v1
                 with:
                     command: check
-                    args: --all-features
+                    args: --all-features --target x86_64-unknown-linux-gnu
 
     check_wasm:
-        name: Check wasm32
+        name: Check [wasm32]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
@@ -38,8 +39,8 @@ jobs:
                     command: check
                     args: --all-features --lib --target wasm32-unknown-unknown
 
-    test:
-        name: Test Suite
+    test_native:
+        name: Test Suite [x86_64]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
@@ -47,6 +48,7 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
+                    target: x86_64-unknown-linux-gnu
                     override: true
             -   run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
             -   uses: actions-rs/cargo@v1
@@ -54,8 +56,8 @@ jobs:
                     command: test
                     args: --lib
 
-    fmt:
-        name: Rustfmt
+    test_wasm:
+        name: Test Suite [wasm32]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
@@ -63,6 +65,24 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
+                    target: wasm32-unknown-unknown
+                    override: true
+            -   run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+            -   uses: actions-rs/cargo@v1
+                with:
+                    command: test
+                    args: --lib
+
+    fmt_native:
+        name: Rustfmt [x86_64]
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    target: x86_64-unknown-linux-gnu
                     override: true
                     components: rustfmt
             -   uses: actions-rs/cargo@v1
@@ -70,8 +90,8 @@ jobs:
                     command: fmt
                     args: --all -- --check
 
-    clippy:
-        name: Clippy
+    fmt_wasm:
+        name: Rustfmt [wasm32]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
@@ -79,6 +99,41 @@ jobs:
                 with:
                     profile: minimal
                     toolchain: stable
+                    target: wasm32-unknown-unknown
+                    override: true
+                    components: rustfmt
+            -   uses: actions-rs/cargo@v1
+                with:
+                    command: fmt
+                    args: --all -- --check
+
+    clippy_native:
+        name: Clippy [x86_64]
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    target: x86_64-unknown-linux-gnu
+                    override: true
+                    components: clippy
+            -   uses: actions-rs/cargo@v1
+                with:
+                    command: clippy
+                    args: -- -D warnings
+
+    clippy_wasm:
+        name: Clippy [wasm32]
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    profile: minimal
+                    toolchain: stable
+                    target: wasm32-unknown-unknown
                     override: true
                     components: clippy
             -   uses: actions-rs/cargo@v1
@@ -87,7 +142,7 @@ jobs:
                     args: -- -D warnings
 
     trunk:
-        name: trunk
+        name: trunk [wasm32]
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v4
