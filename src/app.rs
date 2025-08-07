@@ -3,7 +3,7 @@ use egui::{Align, Layout, UiKind};
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc;
 
-use crate::xml_parsing::{get_xml_root_node_name, is_likely_xml};
+use crate::xml_parsing::{get_all_xml_element_names, is_likely_xml};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -103,20 +103,33 @@ impl App {
         ui.label(format!("File size: {} bytes", content.len()));
 
         if is_likely_xml(content) {
-            match get_xml_root_node_name(content) {
-                Ok(Some(root_name)) => {
-                    ui.horizontal(|ui| {
-                        ui.label("XML Root Node:");
-                        ui.strong(root_name);
+            match get_all_xml_element_names(content) {
+                Ok(element_names) => {
+                    ui.collapsing("All XML Elements", |ui| {
+                        if element_names.is_empty() {
+                            ui.label("No elements found in the XML document.");
+                        } else {
+                            ui.label(format!("Found {} elements:", element_names.len()));
+
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                for (index, name) in element_names.iter().enumerate() {
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("{}.", index + 1));
+                                        ui.label(name);
+                                    });
+                                }
+                            });
+                        }
                     });
                 }
-                Ok(None) => {
-                    ui.label("XML file detected, but no root node found.");
-                }
                 Err(e) => {
-                    ui.colored_label(egui::Color32::YELLOW, format!("Error parsing XML: {e}"));
+                    ui.colored_label(
+                        egui::Color32::YELLOW,
+                        format!("Error extracting element names: {e}"),
+                    );
                 }
             }
+
             ui.separator();
         }
 
