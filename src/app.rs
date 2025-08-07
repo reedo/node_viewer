@@ -111,11 +111,8 @@ impl App {
                         egui::ScrollArea::vertical()
                             .auto_shrink([false, false])
                             .show(ui, |ui| {
-                                for (index, name) in element_names.iter().enumerate() {
-                                    ui.horizontal(|ui| {
-                                        ui.label(format!("{}.", index + 1));
-                                        ui.label(name);
-                                    });
+                                for name in element_names.iter() {
+                                    self.display_xml_element_widget(ui, name);
                                 }
                             });
                     }
@@ -152,6 +149,29 @@ impl App {
         } else {
             ui.label("File content cannot be displayed as text.");
         }
+    }
+
+    fn display_xml_element_widget(&self, ui: &mut egui::Ui, element_name: &str) {
+        // Create a frame with a border around the element
+        egui::Frame::new()
+            .stroke(egui::Stroke::new(1.0, ui.visuals().widgets.active.bg_fill))
+            .corner_radius(egui::CornerRadius::same(4))
+            .inner_margin(egui::Margin::same(8))
+            .show(ui, |ui| {
+                ui.vertical(|ui| {
+                    // Display the element name with some emphasis
+                    ui.heading(element_name);
+
+                    // Add a separator between name and attributes section
+                    ui.separator();
+
+                    // Placeholder for attributes (to be implemented later)
+                    ui.label("Attributes will be displayed here in a future update");
+                });
+            });
+
+        // Add some spacing between widgets
+        ui.add_space(4.0);
     }
 }
 
