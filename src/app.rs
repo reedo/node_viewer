@@ -3,6 +3,8 @@ use egui::{Align, Layout, UiKind};
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc;
 
+use crate::xml_parsing::{get_xml_root_node_name, is_likely_xml};
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct App {
@@ -99,6 +101,24 @@ impl App {
 
     fn display_file_content(&self, ui: &mut egui::Ui, content: &[u8]) {
         ui.label(format!("File size: {} bytes", content.len()));
+
+        if is_likely_xml(content) {
+            match get_xml_root_node_name(content) {
+                Ok(Some(root_name)) => {
+                    ui.horizontal(|ui| {
+                        ui.label("XML Root Node:");
+                        ui.strong(root_name);
+                    });
+                }
+                Ok(None) => {
+                    ui.label("XML file detected, but no root node found.");
+                }
+                Err(e) => {
+                    ui.colored_label(egui::Color32::YELLOW, format!("Error parsing XML: {e}"));
+                }
+            }
+            ui.separator();
+        }
 
         // Display the first few bytes as hex if it's a small file.
         if content.len() <= 1024 {
