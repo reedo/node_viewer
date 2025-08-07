@@ -151,19 +151,18 @@ impl App {
         }
 
         // Try to display as text if it looks like text.
-        if let Ok(mut text_content) = std::str::from_utf8(content) {
-            if text_content
+        if let Ok(mut text_content) = std::str::from_utf8(content)
+            && text_content
                 .chars()
                 .all(|c| c.is_ascii() && !c.is_control() || c.is_whitespace())
-            {
-                ui.collapsing("File content (text)", |ui| {
-                    ui.add(
-                        egui::TextEdit::multiline(&mut text_content)
-                            .desired_width(f32::INFINITY)
-                            .code_editor(),
-                    );
-                });
-            }
+        {
+            ui.collapsing("File content (text)", |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut text_content)
+                        .desired_width(f32::INFINITY)
+                        .code_editor(),
+                );
+            });
         }
     }
 }
