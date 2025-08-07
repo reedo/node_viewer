@@ -21,7 +21,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: check
-                    args: --all-features --lib
+                    args: --all-features --lib --target x86_64-pc-windows-msvc
 
     check_wasm:
         name: Check [wasm32]
@@ -37,7 +37,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: check
-                    args: --all-features --lib
+                    args: --all-features --lib --target wasm32-unknown-unknown
 
     test_native:
         name: Test Suite [x86_64]
@@ -54,7 +54,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: test
-                    args: --lib
+                    args: --lib --target x86_64-pc-windows-msvc
 
     test_wasm:
         name: Test Suite [wasm32]
@@ -71,7 +71,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: test
-                    args: --lib
+                    args: --lib --target wasm32-unknown-unknown
 
     fmt_native:
         name: Rustfmt [x86_64]
@@ -88,7 +88,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: fmt
-                    args: --all -- --check
+                    args: --all --target x86_64-pc-windows-msvc -- --check
 
     fmt_wasm:
         name: Rustfmt [wasm32]
@@ -105,7 +105,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: fmt
-                    args: --all -- --check
+                    args: --all --target wasm32-unknown-unknown -- --check
 
     #    clippy_native:
     #        name: Clippy [x86_64]
