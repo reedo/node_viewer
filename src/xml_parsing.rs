@@ -2,32 +2,6 @@ use anyhow::Result;
 use quick_xml::Reader;
 use quick_xml::events::Event;
 
-/// Attempts to extract the root element name from XML content
-pub fn get_xml_root_node_name(content: &[u8]) -> Result<Option<String>> {
-    let mut reader = Reader::from_reader(content);
-    reader.config_mut().trim_text(true);
-
-    let mut buf = Vec::new();
-
-    // Look for the first start element event
-    loop {
-        match reader.read_event_into(&mut buf)? {
-            Event::Start(e) | Event::Empty(e) => {
-                // Found the root element
-                return Ok(Some(std::str::from_utf8(e.name().as_ref())?.to_string()));
-            }
-            Event::Eof => {
-                // Reached end of file without finding a root element
-                return Ok(None);
-            }
-            _ => {
-                // Skip other events (comments, processing instructions, etc.)
-                buf.clear();
-            }
-        }
-    }
-}
-
 /// Checks if content appears to be XML.
 pub fn is_likely_xml(content: &[u8]) -> bool {
     if let Ok(start) = std::str::from_utf8(&content[..content.len().min(1000)]) {
