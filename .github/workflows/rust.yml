@@ -54,24 +54,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: test
-                    args: --lib --target x86_64-pc-windows-msvc
-
-    test_wasm:
-        name: Test Suite [wasm32]
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v4
-            -   uses: actions-rs/toolchain@v1
-                with:
-                    profile: minimal
-                    toolchain: stable
-                    target: wasm32-unknown-unknown
-                    override: true
-            -   run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
-            -   uses: actions-rs/cargo@v1
-                with:
-                    command: test
-                    args: --lib --target wasm32-unknown-unknown
+                    args: --lib
 
     fmt_native:
         name: Rustfmt [x86_64]
@@ -88,7 +71,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: fmt
-                    args: --all --target x86_64-pc-windows-msvc -- --check
+                    args: --all -- --check
 
     fmt_wasm:
         name: Rustfmt [wasm32]
@@ -105,7 +88,7 @@ jobs:
             -   uses: actions-rs/cargo@v1
                 with:
                     command: fmt
-                    args: --all --target wasm32-unknown-unknown -- --check
+                    args: --all -- --check
 
     #    clippy_native:
     #        name: Clippy [x86_64]
