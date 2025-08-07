@@ -99,19 +99,18 @@ impl App {
         }
     }
 
-    fn display_file_content(&self, ui: &mut egui::Ui, content: &[u8]) {
-        ui.label(format!("File size: {} bytes", content.len()));
+    fn display_xml_elements(&self, ui: &mut egui::Ui, content: &[u8]) {
+        ui.heading("XML Elements");
 
         if is_likely_xml(content) {
             match get_all_xml_element_names(content) {
                 Ok(element_names) => {
-                    ui.collapsing("All XML Elements", |ui| {
-                        if element_names.is_empty() {
-                            ui.label("No elements found in the XML document.");
-                        } else {
-                            ui.label(format!("Found {} elements:", element_names.len()));
-
-                            egui::ScrollArea::vertical().show(ui, |ui| {
+                    if element_names.is_empty() {
+                        ui.label("No elements found in the XML document.");
+                    } else {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
                                 for (index, name) in element_names.iter().enumerate() {
                                     ui.horizontal(|ui| {
                                         ui.label(format!("{}.", index + 1));
@@ -119,8 +118,7 @@ impl App {
                                     });
                                 }
                             });
-                        }
-                    });
+                    }
                 }
                 Err(e) => {
                     ui.colored_label(
@@ -129,47 +127,36 @@ impl App {
                     );
                 }
             }
-
-            ui.separator();
+        } else {
+            ui.label("Not an XML file or unable to parse XML elements.");
         }
+    }
 
-        // Display the first few bytes as hex if it's a small file.
-        if content.len() <= 1024 {
-            ui.collapsing("File content (hex)", |ui| {
-                let hex_string = content
-                    .iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
+    fn display_text_content(&self, ui: &mut egui::Ui, content: &[u8]) {
+        ui.heading("File Content");
 
-                ui.add(
-                    egui::TextEdit::multiline(&mut hex_string.as_str())
-                        .desired_width(f32::INFINITY)
-                        .code_editor(),
-                );
-            });
-        }
-
-        // Try to display as text if it looks like text.
-        if let Ok(mut text_content) = std::str::from_utf8(content)
+        if let Ok(text_content) = std::str::from_utf8(content)
             && text_content
                 .chars()
                 .all(|c| c.is_ascii() && !c.is_control() || c.is_whitespace())
         {
-            ui.collapsing("File content (text)", |ui| {
-                ui.add(
-                    egui::TextEdit::multiline(&mut text_content)
-                        .desired_width(f32::INFINITY)
-                        .code_editor(),
-                );
-            });
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut text_content.to_string())
+                            .desired_width(ui.available_width())
+                            .code_editor(),
+                    );
+                });
+        } else {
+            ui.label("File content cannot be displayed as text.");
         }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
-        // Check for async file loading results on WASM
         #[cfg(target_arch = "wasm32")]
         self.check_file_loading_result();
 
@@ -203,33 +190,52 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(context, |ui| {
-            match &self.file_loading_state {
-                FileLoadingState::Idle => {
+        match &self.file_loading_state {
+            FileLoadingState::Idle => {
+                egui::CentralPanel::default().show(context, |ui| {
                     ui.heading("Node Viewer");
                     ui.label("No file opened. Use File > Open to select a file.");
-                }
-                FileLoadingState::Loading => {
+                });
+            }
+
+            FileLoadingState::Loading => {
+                egui::CentralPanel::default().show(context, |ui| {
                     ui.heading("Loading file...");
                     ui.spinner();
                     ui.label("Please wait while the file is being loaded.");
-                }
-                FileLoadingState::Loaded(file_details) => {
-                    ui.heading(format!("File: {}", &file_details.file_name));
-                    self.display_file_content(ui, &file_details.file_content);
-                }
-                FileLoadingState::Error(error) => {
+                });
+            }
+
+            FileLoadingState::Loaded(file_details) => {
+                egui::TopBottomPanel::bottom("file_info").show(context, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading(format!("File: {}", &file_details.file_name));
+                        ui.label(format!("Size: {} bytes", file_details.file_content.len()));
+                    });
+                });
+
+                egui::SidePanel::left("xml_elements_panel")
+                    .resizable(true)
+                    .min_width(context.available_rect().width() * 0.2)
+                    .max_width(context.available_rect().width() * 0.8)
+                    .show(context, |ui| {
+                        self.display_xml_elements(ui, &file_details.file_content);
+                    });
+
+                egui::CentralPanel::default().show(context, |ui| {
+                    self.display_text_content(ui, &file_details.file_content);
+                });
+            }
+
+            FileLoadingState::Error(error) => {
+                egui::CentralPanel::default().show(context, |ui| {
                     ui.heading("Error");
                     ui.colored_label(egui::Color32::RED, error);
                     ui.separator();
                     ui.label("Use File > Open to try loading another file.");
-                }
+                });
             }
-
-            ui.with_layout(Layout::bottom_up(Align::RIGHT), |ui| {
-                egui::warn_if_debug_build(ui);
-            });
-        });
+        }
 
         // Request repaint to keep checking for async results.
         #[cfg(target_arch = "wasm32")]
